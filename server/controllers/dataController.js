@@ -1,195 +1,266 @@
-/**
- *
- * Back-end API that handles App, DataSource and View CRUD requests.
- *
- */
-
 const DataSource = require("../schemas/dataSource-schema");
+const App = require("../schemas/app-schema");
 
 const { getSheetByURL } = require("../misc/sheetsHelper");
-const { verifyToken } = require("../controllers/authController");
+const { sanitizeDataSource, deriveAppPermissions } = require("../utils/accessControl");
 
-/**
- * Creates a new DataSource based on the request. Throws 400 error if DataSource object creation faile
- * @param { Object } req
- * @param { Object } res
- * @returns Created Datasource or error 500 depending on success
- */
+const ensureUserEmail = (req, res) => {
+        const userEmail = req.user?.email;
+
+        if (!userEmail) {
+                res.status(401).json({
+                        success: false,
+                        error: "User is not authenticated.",
+                });
+
+                return null;
+        }
+
+        return userEmail;
+};
+
+const getAppPermissionsForDataSource = async (dataSourceId, userEmail) => {
+        const app = await App.findOne({ dataSources: dataSourceId });
+
+        if (!app) {
+                return { app: null, permissions: null };
+        }
+
+        return { app, permissions: deriveAppPermissions(app, userEmail) };
+};
+
 createDataSource = async (req, res) => {
-	try {
-		const body = req.body;
+        try {
+                const body = req.body || {};
+                const userEmail = ensureUserEmail(req, res);
 
-		console.log("createDataSource body: " + JSON.stringify(body));
+                console.log("createDataSource body: " + JSON.stringify(body));
 
-		if (!body) {
-			return res
-				.status(400)
-				.json({ errorMessage: "Please enter all required fields." });
-		}
+                if (!body) {
+                        return res
+                                .status(400)
+                                .json({ errorMessage: "Please enter all required fields." });
+                }
 
-		const ds = new DataSource(body);
-		if (!DataSource) {
-			return res.status(400).json({ success: false, error: err });
-		}
+                if (!userEmail) {
+                        return;
+                }
 
-		console.log("DS: " + ds.toString());
+                const payload = {
+                        name: body.name,
+                        url: body.url,
+                        spreadsheetId: body.spreadsheetId,
+                        gid: body.gid,
+                        key: body.key,
+                        columns: body.columns,
+                        published: body.published === true,
+                        creator: userEmail,
+                };
 
-		const savedDS = await ds
-			.save()
-			.then(() => {
-				return res.status(201).json({
-					success: true,
-					ds: ds,
-				});
-			})
-			.catch((err) => {
-				return res.status(500).json({
-					success: false,
-					error: err,
-				});
-			});
+                const ds = new DataSource(payload);
 
-		console.log("Created DS: " + savedDS);
-	} catch (err) {
-		return res.status(500).json({
-			success: false,
-			error: err,
-		});
-	}
+                await ds.save();
+
+                return res.status(201).json({
+                        success: true,
+                        ds: sanitizeDataSource(ds, { includeSpreadsheetId: true }),
+                });
+        } catch (err) {
+                return res.status(500).json({
+                        success: false,
+                        error: err,
+                });
+        }
 };
 
-/**
- * Finds DataSource based on id. Updates it if parameters exist. Throws 404 if DataSource with id does not exist.
- * @param { Object } req
- * @param { Object } res
- * @returns updated DataSource or throws err depending on success
- */
+
 updateDataSource = async (req, res) => {
-	try {
-		const body = req.body;
+        try {
+                const body = req.body;
+                const userEmail = ensureUserEmail(req, res);
 
-		console.log("updateDataSource body: " + JSON.stringify(body));
+                console.log("updateDataSource body: " + JSON.stringify(body));
 
-		if (!body) {
-			return res
-				.status(400)
-				.json({ errorMessage: "Please enter all required fields." });
-		}
+                if (!body) {
+                        return res
+                                .status(400)
+                                .json({ errorMessage: "Please enter all required fields." });
+                }
 
-		let ds = await DataSource.findOne({ _id: body._id });
+                if (!userEmail) {
+                        return;
+                }
 
-		if (!ds) {
-			return res.status(404).json({ success: false, error: err });
-		}
+                const ds = await DataSource.findOne({ _id: body._id });
 
-		console.log("DataSource: " + ds.toString());
+                if (!ds) {
+                        return res.status(404).json({ success: false });
+                }
 
-		if (body.name !== undefined) ds.name = body.name;
-		if (body.published !== undefined) ds.published = body.published; // NOTE: SIMILAR TO UPDATE APP, published will not update if its updated to false.
-		if (body.url !== undefined) ds.url = body.url;
-		if (body.gid !== undefined) ds.gid = body.gid;
-		if (body.key !== undefined) ds.key = body.key;
-		if (body.columns !== undefined) ds.columns = body.columns;
+                const ownsDataSource = ds.creator === userEmail;
+                let includeSpreadsheetId = ownsDataSource;
 
-		const savedDs = await ds
-			.save()
-			.then(() => {
-				return res.status(201).json({
-					success: true,
-					ds: ds,
-				});
-			})
-			.catch((err) => {
-				return res.status(500).json({
-					success: false,
-					error: err,
-				});
-			});
+                if (!ownsDataSource) {
+                        const { app, permissions } = await getAppPermissionsForDataSource(
+                                ds._id,
+                                userEmail
+                        );
 
-		console.log("Updated DS: " + savedDs);
-	} catch (err) {
-		return res.status(500).json({
-			success: false,
-			error: err,
-		});
-	}
+                        if (!app || !permissions?.canManage) {
+                                return res.status(403).json({
+                                        success: false,
+                                        error: "User is not authorized to modify this data source.",
+                                });
+                        }
+
+                        includeSpreadsheetId = permissions.canManage;
+                }
+
+                if (body.name !== undefined) ds.name = body.name;
+                if (body.published !== undefined) ds.published = body.published === true;
+                if (body.url !== undefined) ds.url = body.url;
+                if (body.gid !== undefined) ds.gid = body.gid;
+                if (body.key !== undefined) ds.key = body.key;
+                if (body.columns !== undefined) ds.columns = body.columns;
+
+                await ds.save();
+
+                return res.status(200).json({
+                        success: true,
+                        ds: sanitizeDataSource(ds, { includeSpreadsheetId }),
+                });
+        } catch (err) {
+                return res.status(500).json({
+                        success: false,
+                        error: err,
+                });
+        }
 };
 
-/**
- * Finds DataSource based on id. Throws 404 if DataSource with id does not exist.
- * @param { Object } req
- * @param { Object } res
- * @returns DataSource and data (assumed to be 2D Array) inside sheets or throws err depending on success
- */
+
 getDataSourceById = async (req, res) => {
-	try {
-		//ID is from ID in the database
-		const id = req.query.id;
-		const token = req.query.token;
+        try {
+                const id = req.query.id;
+                const userEmail = ensureUserEmail(req, res);
 
-		if (!id || !token) {
-			return res
-				.status(400)
-				.json({ errorMessage: "Please enter all required fields." });
-		}
+                if (!id) {
+                        return res
+                                .status(400)
+                                .json({ errorMessage: "Please enter all required fields." });
+                }
 
-		const ds = await DataSource.findOne({ _id: id });
+                if (!userEmail) {
+                        return;
+                }
 
-		// added Error Checking if no datasource found.
-		if (!ds) {
-			return res.status(404).json({ error: "no ds with this id" });
-		}
+                const ds = await DataSource.findOne({ _id: id });
 
-		let clientInfo = await verifyToken(token);
-		let { sheetInfo } = await getSheetByURL(ds.url, clientInfo.email);
+                if (!ds) {
+                        return res.status(404).json({ error: "no ds with this id" });
+                }
 
-		return res.status(200).json({
-			success: true,
-			ds: ds,
-			data: sheetInfo,
-		});
-	} catch (err) {
-		console.error(err);
-		res.status(500).send();
-	}
+                let includeSpreadsheetId = false;
+                let canView = false;
+
+                if (ds.creator === userEmail) {
+                        canView = true;
+                        includeSpreadsheetId = true;
+                } else {
+                        const { app, permissions } = await getAppPermissionsForDataSource(
+                                ds._id,
+                                userEmail
+                        );
+
+                        if (!app) {
+                                return res.status(403).json({
+                                        success: false,
+                                        error: "User is not authorized to access this data source.",
+                                });
+                        }
+
+                        if (!permissions?.canView) {
+                                return res.status(403).json({
+                                        success: false,
+                                        error: "User is not authorized to access this data source.",
+                                });
+                        }
+
+                        canView = true;
+                        includeSpreadsheetId = permissions.canManage;
+                }
+
+                if (!canView) {
+                        return res.status(403).json({
+                                success: false,
+                                error: "User is not authorized to access this data source.",
+                        });
+                }
+
+                const sanitizedDs = sanitizeDataSource(ds, { includeSpreadsheetId });
+
+                const { sheetInfo } = await getSheetByURL(ds.url, userEmail);
+
+                return res.status(200).json({
+                        success: true,
+                        ds: sanitizedDs,
+                        data: sheetInfo,
+                });
+        } catch (err) {
+                console.error(err);
+                res.status(500).send();
+        }
 };
 
-/**
- * Finds DataSource based on id and deletes it. Throws 404 if DataSource with id does not exist.
- * @param { Object } req
- * @param { Object } res
- * @returns success or error 500 based on whether dataSource was deleted.
- */
+
 deleteDataSource = async (req, res) => {
-	try {
-		const id = req.query.id;
+        try {
+                const id = req.query.id;
+                const userEmail = ensureUserEmail(req, res);
 
-		if (!id) {
-			return res
-				.status(400)
-				.json({ errorMessage: "Please enter all required fields." });
-		}
+                if (!id) {
+                        return res
+                                .status(400)
+                                .json({ errorMessage: "Please enter all required fields." });
+                }
 
-		console.log("deleting ds with id " + id);
+                if (!userEmail) {
+                        return;
+                }
 
-		const ds = await DataSource.findOneAndDelete({ _id: id });
+                const ds = await DataSource.findOne({ _id: id });
 
-		if (!ds) {
-			return res.status(404).json({ error: "no ds with this id" });
-		}
+                if (!ds) {
+                        return res.status(404).json({ error: "no ds with this id" });
+                }
 
-		return res.status(200).json({
-			success: true,
-		});
-	} catch (err) {
-		console.error(err);
-		res.status(500).send();
-	}
+                if (ds.creator !== userEmail) {
+                        const { app, permissions } = await getAppPermissionsForDataSource(
+                                ds._id,
+                                userEmail
+                        );
+
+                        if (!app || !permissions?.canManage) {
+                                return res.status(403).json({
+                                        success: false,
+                                        error: "User is not authorized to delete this data source.",
+                                });
+                        }
+                }
+
+                await DataSource.deleteOne({ _id: id });
+
+                return res.status(200).json({
+                        success: true,
+                });
+        } catch (err) {
+                console.error(err);
+                res.status(500).send();
+        }
 };
 
 module.exports = {
-	createDataSource,
-	updateDataSource,
-	getDataSourceById,
-	deleteDataSource,
+        createDataSource,
+        updateDataSource,
+        getDataSourceById,
+        deleteDataSource,
 };

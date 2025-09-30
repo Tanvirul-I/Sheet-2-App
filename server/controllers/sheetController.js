@@ -4,215 +4,200 @@
  *
  */
 
-const { verifyToken } = require("./authController");
 const {
-	getSheetByURL,
-	getGlobalDevList,
-	editSheetByURL,
+        getSheetByURL,
+        getGlobalDevList,
+        editSheetByURL,
+        getURLInfo,
 } = require("../misc/sheetsHelper");
-const { getDataSource, checkSchemaConsistency } = require("../misc/dataHelper");
+const { getDataSourceAccess, checkSchemaConsistency } = require("../misc/dataHelper");
 
 const dotenv = require("dotenv");
 dotenv.config();
 
-/**
- * performs error checking of the whole process.
- * if no errors found, returns the sheet and gid.
- * @param req
- * @param res
- */
-getSheetInfo = async (user, sheetURL) => {
-	try {
-		if (!sheetURL) {
-			return res.status(400).json({
-				success: false,
-				errorMessage: "No spreadsheet provided",
-			});
-		}
+const ensureUserEmail = (req, res) => {
+        const userEmail = req.user?.email;
 
-		if (!user) {
-			return res
-				.status(400)
-				.json({ errorMessage: "Please enter all required fields." });
-		}
+        if (!userEmail) {
+                res.status(401).json({
+                        success: false,
+                        errorMessage: "Please enter all required fields.",
+                });
 
-		let { sheetInfo, sheetId, GID } = await getSheetByURL(sheetURL, user);
+                return null;
+        }
 
-		const ds = await getDataSource(sheetId);
-
-		if (ds) {
-			let check = await checkSchemaConsistency(ds, sheetInfo);
-
-			if (!check)
-				return res.status(400).json({
-					success: false,
-					errorMessage: "Columns different from expected",
-				});
-		}
-
-		if (!sheetInfo) {
-			return res.status(400).json({
-				success: false,
-				errorMessage: "Empty spreadsheet",
-			});
-		}
-
-		return {
-			success: true,
-			sheet: sheetInfo,
-			sheetId: sheetId,
-			gid: GID,
-		};
-	} catch (err) {
-		console.error(err);
-		let errorMessage = "";
-		if (!err.errors) {
-			return {
-				success: false,
-				errorMessage: "Unknown error, please make sure you entered a valid URL",
-			};
-		}
-		for (let error of err.errors) {
-			errorMessage += error.message;
-		}
-		return {
-			success: false,
-			errorMessage:
-				"Google's API returned the following error(s):\n" + errorMessage,
-		};
-	}
-};
-getSheetInfo2 = async (req, res) => {
-	try {
-		const user = req.query.user;
-		const sheetURL = req.query.sheetURL;
-
-		if (!sheetURL) {
-			return res.status(400).json({
-				success: false,
-				errorMessage: "No spreadsheet provided",
-			});
-		}
-
-		if (!user) {
-			return res
-				.status(400)
-				.json({ errorMessage: "Please enter all required fields." });
-		}
-
-		let { sheetInfo, sheetId, GID } = await getSheetByURL(sheetURL, user.email);
-
-		const ds = await getDataSource(sheetId);
-
-		if (ds) {
-			let check = await checkSchemaConsistency(ds, sheetInfo);
-
-			console.log(check);
-
-			if (!check)
-				return res.status(400).json({
-					success: false,
-					errorMessage: "Columns different from expected",
-				});
-		}
-
-		if (!sheetInfo) {
-			return res.status(400).json({
-				success: false,
-				errorMessage: "Empty spreadsheet",
-			});
-		}
-
-		return res.status(200).json({
-			success: true,
-			sheet: sheetInfo,
-			sheetId: sheetId,
-			gid: GID,
-		});
-	} catch (err) {
-		console.error(err);
-		let errorMessage = "";
-		if (!err.errors) {
-			return res.status(200).json({
-				success: false,
-				errorMessage: "Unknown error, please make sure you entered a valid URL",
-			});
-		}
-		for (let error of err.errors) {
-			errorMessage += error.message;
-		}
-		return res.status(400).json({
-			success: false,
-			errorMessage:
-				"Google's API returned the following error(s):\n" + errorMessage,
-		});
-	}
+        return userEmail;
 };
 
-/**
- * performs error checking of the whole process.
- * if no errors found, returns the sheet and gid.
- * @param req
- * @param res
- */
-editSheetReq = async (req, res) => {
-	try {
-		const user = req.body.user;
-		const sheetURL = req.body.sheetURL; // "https://docs.google.com/spreadsheets/d/1Kh2d32RzhzwqjxcBq5Ry3Hq17VaC844ln-yQNYVisWA/edit#gid=0";
-		const values = req.body.values; // Should be a 2d array [["12", "TRUE", "11:00 AM", "6:00 PM", "Comment 4", "FALSE", "gmail.com"]];
-		const row = req.body.row;
+const formatGoogleErrors = (err) => {
+        if (!err?.errors) {
+                return "Unknown error, please make sure you entered a valid URL";
+        }
 
-		if (!sheetURL || !values || !row || !user) {
-			return res.status(400).json({
-				success: false,
-				errorMessage: "Please enter all required fields.",
-			});
-		}
+        let errorMessage = "";
 
-		if (values === "DELETE") values = [];
+        for (const error of err.errors) {
+                errorMessage += error.message;
+        }
 
-		let { editInfo } = await editSheetByURL(sheetURL, row, values);
-
-		if (!editInfo.success) {
-			return res.status(400).json({
-				success: false,
-				errorMessage: editInfo.message,
-			});
-		}
-
-		return res.status(200).json(editInfo);
-	} catch (err) {
-		console.error(err);
-	}
+        return "Google's API returned the following error(s):\n" + errorMessage;
 };
 
-/**
- * Checks if the email is in the global developers list
- * @param {string} email
- */
-inGlobalDevList = async (req, res) => {
-	// decode token from auth api
-	const token = req.query.user;
-	let globalDevList = await getGlobalDevList();
-	const data = await verifyToken(token);
-	let creatorEmail = data.email;
+const getSheetInfo = async (req, res) => {
+        try {
+                const sheetURL = req.query.sheetURL;
+                const userEmail = ensureUserEmail(req, res);
 
-	// Check if creatorEmail is in the contents of the dev list
-	if (globalDevList.indexOf(creatorEmail) > -1) {
-		return res.status(200).json({
-			success: true,
-			message: "Email is in global developer list",
-		});
-	} else {
-		return res.status(200).json({
-			success: false,
-			message: "Email is NOT in global developer list",
-		});
-	}
+                if (!sheetURL) {
+                        return res.status(400).json({
+                                success: false,
+                                errorMessage: "No spreadsheet provided",
+                        });
+                }
+
+                if (!userEmail) {
+                        return;
+                }
+
+                const { sheetId, GID } = await getURLInfo(sheetURL);
+                const access = await getDataSourceAccess(sheetId, userEmail);
+
+                if (!access?.dataSource) {
+                        return res.status(404).json({
+                                success: false,
+                                errorMessage: "Spreadsheet not found.",
+                        });
+                }
+
+                if (!access.canView) {
+                        return res.status(403).json({
+                                success: false,
+                                errorMessage: "User is not authorized to access this spreadsheet.",
+                        });
+                }
+
+                const { sheetInfo } = await getSheetByURL(sheetURL, userEmail);
+
+                if (access.dataSource) {
+                        const isConsistent = await checkSchemaConsistency(access.dataSource, sheetInfo);
+
+                        if (!isConsistent) {
+                                return res.status(400).json({
+                                        success: false,
+                                        errorMessage: "Columns different from expected",
+                                });
+                        }
+                }
+
+                if (!sheetInfo) {
+                        return res.status(400).json({
+                                success: false,
+                                errorMessage: "Empty spreadsheet",
+                        });
+                }
+
+                return res.status(200).json({
+                        success: true,
+                        sheet: sheetInfo,
+                        sheetId: sheetId,
+                        gid: GID,
+                });
+        } catch (err) {
+                console.error(err);
+                return res.status(400).json({
+                        success: false,
+                        errorMessage: formatGoogleErrors(err),
+                });
+        }
+};
+
+const editSheetReq = async (req, res) => {
+        try {
+                const sheetURL = req.body.sheetURL;
+                let values = req.body.values;
+                const row = req.body.row;
+                const userEmail = ensureUserEmail(req, res);
+
+                if (!sheetURL || !values || !row) {
+                        return res.status(400).json({
+                                success: false,
+                                errorMessage: "Please enter all required fields.",
+                        });
+                }
+
+                if (!userEmail) {
+                        return;
+                }
+
+                const { sheetId } = await getURLInfo(sheetURL);
+                const access = await getDataSourceAccess(sheetId, userEmail);
+
+                if (!access?.dataSource) {
+                        return res.status(404).json({
+                                success: false,
+                                errorMessage: "Spreadsheet not found.",
+                        });
+                }
+
+                if (!access.canManage) {
+                        return res.status(403).json({
+                                success: false,
+                                errorMessage: "User is not authorized to edit this spreadsheet.",
+                        });
+                }
+
+                if (values === "DELETE") {
+                        values = [];
+                }
+
+                const { editInfo } = await editSheetByURL(sheetURL, row, values);
+
+                if (!editInfo.success) {
+                        return res.status(400).json({
+                                success: false,
+                                errorMessage: editInfo.message,
+                        });
+                }
+
+                return res.status(200).json(editInfo);
+        } catch (err) {
+                console.error(err);
+                return res.status(500).json({
+                        success: false,
+                        errorMessage: "Unable to edit spreadsheet.",
+                });
+        }
+};
+
+const inGlobalDevList = async (req, res) => {
+        try {
+                const userEmail = ensureUserEmail(req, res);
+
+                if (!userEmail) {
+                        return;
+                }
+
+                const globalDevList = await getGlobalDevList();
+                const isDeveloper = globalDevList.indexOf(userEmail) > -1;
+
+                return res.status(200).json({
+                        success: isDeveloper,
+                        message: isDeveloper
+                                ? "Email is in global developer list"
+                                : "Email is NOT in global developer list",
+                });
+        } catch (err) {
+                console.error(err);
+                return res.status(500).json({
+                        success: false,
+                        errorMessage: "Unable to verify developer status.",
+                });
+        }
 };
 
 module.exports = {
-	getSheetInfo,
-	inGlobalDevList,
-	editSheetReq,
+        getSheetInfo,
+        inGlobalDevList,
+        editSheetReq,
 };

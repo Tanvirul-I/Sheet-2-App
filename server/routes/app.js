@@ -2,6 +2,9 @@ const express = require("express");
 const router = express.Router();
 
 const AppController = require("../controllers/appController");
+const requireAuth = require("../middleware/auth");
+
+router.use(requireAuth);
 
 router.post("/createApp/", AppController.createApp);
 router.get("/getApps/", AppController.getApps);

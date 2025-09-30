@@ -51,23 +51,28 @@ export default function MakeApp(props) {
 	};
 
 	// the current logged in user
-	const { user, token, globalDev } = useContext(AuthContext);
+        const { user, globalDev } = useContext(AuthContext);
 
 	// On component mount, get the list of apps belonging to the user from the api.
 	// Store it in state.
 	useEffect(() => {
-		async function asyncGetApps() {
-			let response = await appAPI.getApps();
-			if (response.data.success) {
-				if (appList) {
-					setAppList((a) => [...a, response.data.apps]);
-				} else {
-					setAppList([...response.data.apps]);
-				}
-			}
-		}
-		asyncGetApps();
-	}, []);
+                async function asyncGetApps() {
+                        try {
+                                let response = await appAPI.getApps();
+                                if (response.data.success) {
+                                        setAppList(response.data.apps);
+                                        setError("");
+                                }
+                        } catch (e) {
+                                if (e.unauthorized) {
+                                        setError("Your session has expired. Please log in again.");
+                                } else {
+                                        setError("An unexpected error occurred while fetching apps.");
+                                }
+                        }
+                }
+                asyncGetApps();
+        }, []);
 
 	useEffect(() => {
 		// since it takes a moment for the sheet to be read into the state, the useeffect is used
@@ -85,41 +90,61 @@ export default function MakeApp(props) {
 			});
 
 			// now that we have roles, we create app using api.createApp();
-			async function asyncCreateApp() {
-				let response = await appAPI.createApp({
-					name: name,
-					creator: user.email,
-					roleSheet: roleSheet,
-					roles: columns, // roles is stored part of apps.
-					published: false,
-				});
+                        async function asyncCreateApp() {
+                                try {
+                                        let response = await appAPI.createApp({
+                                                name: name,
+                                                roleSheet: roleSheet,
+                                                roles: columns, // roles is stored part of apps.
+                                                published: false,
+                                        });
 
-				// If successful, append the app to the app list.
-				if (response.data.success) {
-					if (appList) {
-						setAppList([...appList, response.data.app]);
-					} else {
-						setAppList([response.data.app]);
-					}
-				}
-			}
-			asyncCreateApp();
+                                        if (response.data.success) {
+                                                setAppList((list) =>
+                                                        list ? [...list, response.data.app] : [response.data.app]
+                                                );
+                                                setError("");
+                                        }
+                                } catch (e) {
+                                        if (e.unauthorized) {
+                                                setError("Your session has expired. Please log in again.");
+                                        } else if (e.data && e.data.errorMessage) {
+                                                setError(`Error from server for request:\n${e.data.errorMessage}`);
+                                        } else if (e.data && e.data.error && e.data.error._message) {
+                                                setError(`Error from server for request:\n${e.data.error._message}`);
+                                        } else if (e.data && e.data.error) {
+                                                setError(`Error from server for request:\n${e.data.error}`);
+                                        } else {
+                                                setError("An unexpected error occurred while contacting the server.");
+                                        }
+                                }
+                        }
+                        asyncCreateApp();
 		}
 	}, [sheetInfo]);
 
 	// Create an app with the specified information from the input fields.
 	// Creator is automatically set to the user's email.
-	const createApp = async () => {
-		// when button is clicked, the rolesheet URL is read into the system using api call.
-		let response = await sheetsAPI.sheetinfo(token, roleSheet);
-		// if success, set the state to the 2d array of the sheet and gid
-		if (response.data.success) {
-			setSheetInfo(response.data.sheet);
-			setGid(response.data.gid);
-		} else {
-			setError(response.data.errorMessage);
-		}
-	};
+        const createApp = async () => {
+                try {
+                        let response = await sheetsAPI.sheetinfo(roleSheet);
+                        if (response.data.success) {
+                                setSheetInfo(response.data.sheet);
+                                setGid(response.data.gid);
+                                setError("");
+                        } else {
+                                setError(response.data.errorMessage);
+                        }
+                } catch (e) {
+                        if (e.unauthorized) {
+                                setError("Your session has expired. Please log in again.");
+                        } else if (e.data && e.data.errorMessage) {
+                                setError(e.data.errorMessage);
+                        } else {
+                                setError("An unexpected error occurred while contacting the server.");
+                        }
+                }
+        };
 
 	// Map the appList to an array of App components.
 	// Pass each component an app object and set its key to its index in the list.
@@ -152,35 +177,42 @@ export default function MakeApp(props) {
 			</h3>
 		</div>
 	);
-	let userType = [];
-	let boolHolder = [];
-	if (appList !== undefined) {
-		for (let i = 0; i < appList.length; i++) {
-			let app = appList[i];
-			for (let role of app.roles) {
-				if (role.members.includes(user.email)) {
-					if (role.name === "Developer") {
-						userType[i] = "dev";
-						break;
-					} else if (app.published !== undefined && app.published !== false) {
-						userType[i] = "end";
-					} else {
-						userType[i] = "no access";
-					}
-				}
-			}
-		}
-		for (let i = 0; i < userType.length; i++) {
-			if (userType[i] !== "no access")
-				boolHolder[i] = globalDev
-					? true
-					: userType[i] === "dev"
-					? true
-					: userType[i] === "end"
-					? true
-					: false;
-		}
-	}
+        let userType = [];
+        let boolHolder = [];
+        if (appList !== undefined) {
+                for (let i = 0; i < appList.length; i++) {
+                        let app = appList[i];
+                        userType[i] = "no access";
+
+                        if (app.permissions?.canManage) {
+                                userType[i] = "dev";
+                                continue;
+                        }
+
+                        if (Array.isArray(app.roles)) {
+                                for (let role of app.roles) {
+                                        if (Array.isArray(role.members) && role.members.includes(user.email)) {
+                                                if (role.name === "Developer") {
+                                                        userType[i] = "dev";
+                                                        break;
+                                                } else if (app.published) {
+                                                        userType[i] = "end";
+                                                }
+                                        }
+                                }
+                        }
+
+                        if (userType[i] === "no access" && app.permissions?.canView) {
+                                userType[i] = "end";
+                        }
+                }
+
+                for (let i = 0; i < userType.length; i++) {
+                        if (userType[i] !== "no access") {
+                                boolHolder[i] = globalDev || userType[i] === "dev" || userType[i] === "end";
+                        }
+                }
+        }
 	if (
 		appList !== undefined &&
 		appList.length > 0 &&
@@ -223,7 +255,13 @@ export default function MakeApp(props) {
 											display="none"
 										>
 											<TableCell scope="appName">{app.name}</TableCell>
-											<TableCell align="left">{app.creator}</TableCell>
+                                                                                        <TableCell align="left">
+                                                                                                {app.permissions?.isCreator
+                                                                                                        ? "You"
+                                                                                                        : app.permissions?.canManage
+                                                                                                        ? "Developer"
+                                                                                                        : "Collaborator"}
+                                                                                        </TableCell>
 											<TableCell align="right">
 												{app.published === undefined
 													? ""

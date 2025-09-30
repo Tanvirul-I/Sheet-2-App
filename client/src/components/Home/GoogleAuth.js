@@ -24,9 +24,14 @@ export default function GoogleAuth() {
 				//Display error message saying login failure
 				return;
 			}
-			let payload = loginInfo.data;
-			const globalDevList = await sheetAPI.inGlobalDevList(payload.token);
-			payload.globalDev = globalDevList.data.success === true;
+                        let payload = loginInfo.data;
+                        localStorage.setItem("user", payload.token);
+                        try {
+                                const globalDevList = await sheetAPI.inGlobalDevList();
+                                payload.globalDev = globalDevList.data.success === true;
+                        } catch (e) {
+                                payload.globalDev = false;
+                        }
 			dispatch({ type: "LOGIN", payload: payload });
 			window.location.reload();
 		},

@@ -112,8 +112,8 @@ export default function App(props) {
 		setViewName(event.target.value);
 	};
 
-	// get the token and user objects from auth context
-	const { token, user } = useContext(AuthContext);
+	// get the user object from auth context
+	const { user } = useContext(AuthContext);
 
 	// get updated roles for the app on mount
 	useEffect(() => {
@@ -131,7 +131,7 @@ export default function App(props) {
 
 	useEffect(() => {
 		async function asyncGetTables(id) {
-			let response = await dataAPI.getDataSourceById(token, id);
+			let response = await dataAPI.getDataSourceById(id);
 			if (response.data.success) {
 				setDss({
 					...dss,
@@ -195,7 +195,7 @@ export default function App(props) {
 	useEffect(() => {
 		async function asyncGetTables() {
 			for (let table of app.dataSources) {
-				let response = await dataAPI.getDataSourceById(token, table);
+				let response = await dataAPI.getDataSourceById(table);
 				if (response.data.success) {
 					if (tableOptions) {
 						setTableOptions((t) => [...t, response.data.ds]);
@@ -206,7 +206,7 @@ export default function App(props) {
 			}
 		}
 		asyncGetTables();
-	}, [app.dataSources, token]);
+	}, [app.dataSources]);
 
 	let optionItems;
 	if (tableOptions) {
@@ -222,23 +222,31 @@ export default function App(props) {
 		});
 	}
 
-	useEffect(() => {
-		if (app) {
-			for (let role of app.roles) {
-				if (role.members.includes(user.email)) {
-					if (role.name === "Developer") {
-						setUserType("dev");
-						break;
-					} else {
-						setUserType("end");
-					}
-				}
-			}
-			if (app.creator === user.email) {
-				setUserType("dev");
-			}
-		}
-	}, [app.roles, user.email, app.creator]);
+        useEffect(() => {
+                if (app) {
+                        if (app.permissions?.canManage) {
+                                setUserType("dev");
+                                return;
+                        }
+
+                        let type = "no access";
+
+                        if (Array.isArray(app.roles)) {
+                                for (let role of app.roles) {
+                                        if (Array.isArray(role.members) && role.members.includes(user.email)) {
+                                                type = role.name === "Developer" ? "dev" : "end";
+                                                break;
+                                        }
+                                }
+                        }
+
+                        if (type === "no access" && app.permissions?.canView) {
+                                type = "end";
+                        }
+
+                        setUserType(type);
+                }
+        }, [app, user.email]);
 
 	useEffect(() => {
 		if (app) {
@@ -642,62 +650,70 @@ export default function App(props) {
 								</Box>
 							</Modal>{" "}
 						</p>
-						<p>App Creator: {app.creator}</p>
-						<p>
-							Rolesheet URL: {app.roleSheet} { userType === "dev" ?
-							<IconButton onClick={handleRolesheetOpen}>
-								<EditIcon />
-							</IconButton>:""}
-							<Modal
-								open={rolesheetOpen}
-								close={handleRolesheetClose}
-								aria-labelledby="modal-app-rolesheet"
-								aria-describedby="modal-app-roledesc"
-							>
-								<Box
-									sx={[
-										{ position: "absolute" },
-										{ top: "50%" },
-										{ left: "50%" },
-										{ transform: "translate(-50%, -50%)" },
-										{ width: 800 },
-										{ bgcolor: "background.paper" },
-										{ border: "2px solid #000" },
-										{ boxShadow: 24 },
-										{ p: 4 },
-									]}
-								>
-									<IconButton
-										onClick={handleRolesheetClose}
-										sx={[
-											{ position: "absolute" },
-											{ top: "0%" },
-											{ left: "0%" },
-										]}
-									>
-										<CloseIcon />
-									</IconButton>
-									<IconButton
-										onClick={handleRolesheetSave}
-										sx={[
-											{ position: "absolute" },
-											{ top: "0%" },
-											{ right: "0%" },
-										]}
-										disabled={
-											appRolesheet == app.roleSheet
-												? true
-												: appRolesheet == ""
-												? true
-												: false
-										}
-									>
-										<DoneIcon />
-									</IconButton>
-									<Typography
-										id="modal-app-rolesheet"
-										variant="h6"
-										component="h2"
+                                                <p>
+                                                        Access Level: {app.permissions?.isCreator
+                                                                ? "Owner"
+                                                                : userType === "dev"
+                                                                ? "Developer"
+                                                                : userType === "end"
+                                                                ? "End User"
+                                                                : "No access"}
+                                                </p>
+                                                {app.permissions?.canManage && (
+                                                        <p>
+                                                                Rolesheet URL: {app.roleSheet}{" "}
+                                                                <IconButton onClick={handleRolesheetOpen}>
+                                                                        <EditIcon />
+                                                                </IconButton>
+                                                                <Modal
+                                                                        open={rolesheetOpen}
+                                                                        close={handleRolesheetClose}
+                                                                        aria-labelledby="modal-app-rolesheet"
+                                                                        aria-describedby="modal-app-roledesc"
+                                                                >
+                                                                        <Box
+                                                                                sx={[
+                                                                                        { position: "absolute" },
+                                                                                        { top: "50%" },
+                                                                                        { left: "50%" },
+                                                                                        { transform: "translate(-50%, -50%)" },
+                                                                                        { width: 800 },
+                                                                                        { bgcolor: "background.paper" },
+                                                                                        { border: "2px solid #000" },
+                                                                                        { boxShadow: 24 },
+                                                                                        { p: 4 },
+                                                                                ]}
+                                                                        >
+                                                                                <IconButton
+                                                                                        onClick={handleRolesheetClose}
+                                                                                        sx={[
+                                                                                                { position: "absolute" },
+                                                                                                { top: "0%" },
+                                                                                                { left: "0%" },
+                                                                                        ]}
+                                                                                >
+                                                                                        <CloseIcon />
+                                                                                </IconButton>
+                                                                                <IconButton
+                                                                                        onClick={handleRolesheetSave}
+                                                                                        sx={[
+                                                                                                { position: "absolute" },
+                                                                                                { top: "0%" },
+                                                                                                { right: "0%" },
+                                                                                        ]}
+                                                                                        disabled={
+                                                                                                appRolesheet == app.roleSheet ||
+                                                                                                appRolesheet == ""
+                                                                                                ? true
+                                                                                                : false
+                                                                                        }
+                                                                                >
+                                                                                        <DoneIcon />
+                                                                                </IconButton>
+                                                                                <Typography
+                                                                                        id="modal-app-rolesheet"
+                                                                                        variant="h6"
+                                                                                        component="h2"
 									>
 										Edit Rolesheet URL
 									</Typography>
@@ -714,8 +730,9 @@ export default function App(props) {
 										variant="outlined"
 									/>
 								</Box>
-							</Modal>
-						</p>
+                                                        </Modal>
+                                                </p>
+                                                )}
 					</div>
 					<div
 						className="app-component-top-part"

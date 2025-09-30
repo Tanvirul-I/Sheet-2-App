@@ -64,8 +64,16 @@ export function AuthContextProvider({ children }) {
 				dispatch({ type: "LOGOUT", payload: {} });
 			} else {
 				let payload = userInfo.data;
-				const globalDevList = await sheetsAPI.inGlobalDevList(payload.token);
-				payload.globalDev = globalDevList.data.success === true;
+                                try {
+                                        const globalDevList = await sheetsAPI.inGlobalDevList();
+                                        payload.globalDev = globalDevList.data.success === true;
+                                } catch (err) {
+                                        if (err?.unauthorized) {
+                                                dispatch({ type: "LOGOUT", payload: {} });
+                                                return;
+                                        }
+                                        payload.globalDev = false;
+                                }
 				dispatch({ type: "LOGIN", payload: payload });
 			}
 		}

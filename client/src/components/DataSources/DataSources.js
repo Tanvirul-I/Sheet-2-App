@@ -9,7 +9,7 @@
  *
  */
 
-import { useState, useContext, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
 	TextField,
 	Button,
@@ -25,8 +25,6 @@ import sheetsAPI from "../../api/sheets";
 import appAPI from "../../api/app";
 import dataAPI from "../../api/data";
 
-import { AuthContext } from "../../context/auth";
-
 export default function DataField(props) {
 	const [name, setName] = useState("");
 	const [sheetURL, setSheetURL] = useState("");
@@ -38,10 +36,9 @@ export default function DataField(props) {
 	const [types, setTypes] = useState({});
 	const [boolType, setBool] = useState("boolean"); // This is used as a temporary fix for the types selection box not updating properly.
 
-	const { user, token } = useContext(AuthContext);
-	let labelVals = {};
-	let initVals = {};
-	let references = {};
+        let labelVals = {};
+        let initVals = {};
+        let references = {};
 
 	/**
 	 * Gets the information contained in the sheet using sheet URL. The Sheet URL is stored using state.
@@ -49,18 +46,27 @@ export default function DataField(props) {
 	 * @async
 	 * @returns { void }
 	 */
-	const getSheet = async () => {
-		let response = await sheetsAPI.sheetinfo(token, sheetURL);
-		if (response.data.success) {
-			// store the sheet's information in the state
-			setSheetInfo(response.data.sheet);
-			setGid(response.data.gid);
-			setSpreadsheetId(response.data.sheetId);
-		} else {
-			// if fetching the data was not a success, then set the error message to display
-			setError(response.data.errorMessage);
-		}
-	};
+        const getSheet = async () => {
+                try {
+                        let response = await sheetsAPI.sheetinfo(sheetURL);
+                        if (response.data.success) {
+                                setSheetInfo(response.data.sheet);
+                                setGid(response.data.gid);
+                                setSpreadsheetId(response.data.sheetId);
+                                setError("");
+                        } else {
+                                setError(response.data.errorMessage);
+                        }
+                } catch (e) {
+                        if (e.unauthorized) {
+                                setError("Your session has expired. Please log in again.");
+                        } else if (e.data && e.data.errorMessage) {
+                                setError(e.data.errorMessage);
+                        } else {
+                                setError("An unexpected error occurred while contacting the server.");
+                        }
+                }
+        };
 
 	/**
 	 * Generating the components for each of the entry fields for
@@ -194,7 +200,17 @@ export default function DataField(props) {
 			});
 		} catch (e) {
 			console.log(e);
-			setError("Error from server for request:\n" + e.data.error._message);
+			if (e.unauthorized) {
+				setError("Your session has expired. Please log in again.");
+			} else if (e.data && e.data.error && e.data.error._message) {
+				setError("Error from server for request:\n" + e.data.error._message);
+			} else if (e.data && e.data.errorMessage) {
+				setError("Error from server for request:\n" + e.data.errorMessage);
+			} else if (e.data && e.data.error) {
+				setError("Error from server for request:\n" + e.data.error);
+			} else {
+				setError("An unexpected error occurred while contacting the server.");
+			}
 		}
 	};
 

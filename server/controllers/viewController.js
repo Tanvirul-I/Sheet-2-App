@@ -1,188 +1,276 @@
-/**
- * Creates a new View based on the request. Throws 400 error if View object creation fails
- * @param { Object } req
- * @param { Object } res
- * @returns Created View or error 500 depending on success
- */
 const View = require("../schemas/view-schema");
+const App = require("../schemas/app-schema");
+
+const { sanitizeView, deriveAppPermissions, getUserRoleNames } = require("../utils/accessControl");
+
+const ensureUserEmail = (req, res) => {
+        const userEmail = req.user?.email;
+
+        if (!userEmail) {
+                res.status(401).json({
+                        success: false,
+                        error: "User is not authenticated.",
+                });
+
+                return null;
+        }
+
+        return userEmail;
+};
+
+const getAppForView = async (viewId) => App.findOne({ view: viewId });
+
 
 createView = async (req, res) => {
-	try {
-		const body = req.body;
+        try {
+                const body = req.body || {};
+                const userEmail = ensureUserEmail(req, res);
 
-		console.log("createView body: " + JSON.stringify(body));
+                console.log("createView body: " + JSON.stringify(body));
 
-		if (!body) {
-			return res
-				.status(400)
-				.json({ errorMessage: "Please enter all required fields." });
-		}
+                if (!body) {
+                        return res
+                                .status(400)
+                                .json({ errorMessage: "Please enter all required fields." });
+                }
 
-		const view = new View(body);
-		if (!view) {
-			return res.status(400).json({ success: false, error: err });
-		}
+                if (!userEmail) {
+                        return;
+                }
 
-		console.log("View: " + view.toString());
+                const payload = {
+                        name: body.name,
+                        table: body.table,
+                        columns: body.columns,
+                        type: body.type,
+                        allowedActions: body.allowedActions,
+                        roles: body.roles,
+                        filter: body.filter,
+                        userFilter: body.userFilter,
+                        editFilter: body.editFilter,
+                        editableCols: body.editableCols,
+                        creator: userEmail,
+                };
 
-		const savedView = await view
-			.save()
-			.then(() => {
-				return res.status(201).json({
-					success: true,
-					view: view,
-				});
-			})
-			.catch((err) => {
-				return res.status(500).json({
-					success: false,
-					error: err,
-				});
-			});
+                const view = new View(payload);
 
-		console.log("Created View: " + savedView);
-	} catch (err) {
-		console.log(err);
-		return res.status(500).json({
-			success: false,
-			error: err,
-		});
-	}
+                await view.save();
+
+                return res.status(201).json({
+                        success: true,
+                        view: sanitizeView(view),
+                });
+        } catch (err) {
+                console.log(err);
+                return res.status(500).json({
+                        success: false,
+                        error: err,
+                });
+        }
 };
 
-/**
- * Finds DataSource based on id. Updates it if parameters exist. Throws 404 if DataSource with id does not exist.
- * @param { Object } req
- * @param { Object } res
- * @returns updated DataSource or throws err depending on success
- */
+
 updateView = async (req, res) => {
-	try {
-		const body = req.body;
+        try {
+                const body = req.body;
+                const userEmail = ensureUserEmail(req, res);
 
-		console.log("updateView body: " + JSON.stringify(body));
+                console.log("updateView body: " + JSON.stringify(body));
 
-		if (!body) {
-			return res
-				.status(400)
-				.json({ errorMessage: "Please enter all required fields." });
-		}
+                if (!body) {
+                        return res
+                                .status(400)
+                                .json({ errorMessage: "Please enter all required fields." });
+                }
 
-		let view = await View.findOne({ _id: body._id });
+                if (!userEmail) {
+                        return;
+                }
 
-		if (!view) {
-			return res.status(404).json({ success: false, error: err });
-		}
+                const view = await View.findOne({ _id: body._id });
 
-		console.log("View: " + view.toString());
+                if (!view) {
+                        return res.status(404).json({ success: false });
+                }
 
-		if (body.name !== undefined) view.name = body.name;
-		if (body.table !== undefined) view.table = body.table;
-		if (body.columns !== undefined) view.columns = body.columns;
-		if (body.type !== undefined) view.type = body.type;
-		if (body.allowedActions !== undefined)
-			view.allowedActions = body.allowedActions;
-		if (body.roles !== undefined) view.roles = body.roles;
-		if (body.filter !== undefined) view.filter = body.filter;
-		if (body.userFilter !== undefined) view.userFilter = body.userFilter;
-		if (body.editFilter !== undefined) view.editFilter = body.editFilter;
-		if (body.editableCols !== undefined) view.editableCols = body.editableCols;
+                let canManage = view.creator === userEmail;
 
-		const savedView = await view
-			.save()
-			.then(() => {
-				return res.status(201).json({
-					success: true,
-					view: view,
-				});
-			})
-			.catch((err) => {
-				return res.status(500).json({
-					success: false,
-					error: err,
-				});
-			});
+                if (!canManage) {
+                        const app = await getAppForView(view._id);
 
-		console.log("Updated View: " + savedView);
-	} catch (err) {
-		return res.status(500).json({
-			success: false,
-			error: err,
-		});
-	}
+                        if (!app) {
+                                return res.status(403).json({
+                                        success: false,
+                                        error: "User is not authorized to modify this view.",
+                                });
+                        }
+
+                        const permissions = deriveAppPermissions(app, userEmail);
+
+                        if (!permissions?.canManage) {
+                                return res.status(403).json({
+                                        success: false,
+                                        error: "User is not authorized to modify this view.",
+                                });
+                        }
+
+                        canManage = true;
+                }
+
+                if (body.name !== undefined) view.name = body.name;
+                if (body.table !== undefined) view.table = body.table;
+                if (body.columns !== undefined) view.columns = body.columns;
+                if (body.type !== undefined) view.type = body.type;
+                if (body.allowedActions !== undefined) view.allowedActions = body.allowedActions;
+                if (body.roles !== undefined) view.roles = body.roles;
+                if (body.filter !== undefined) view.filter = body.filter;
+                if (body.userFilter !== undefined) view.userFilter = body.userFilter;
+                if (body.editFilter !== undefined) view.editFilter = body.editFilter;
+                if (body.editableCols !== undefined) view.editableCols = body.editableCols;
+
+                await view.save();
+
+                return res.status(200).json({
+                        success: true,
+                        view: sanitizeView(view),
+                });
+        } catch (err) {
+                return res.status(500).json({
+                        success: false,
+                        error: err,
+                });
+        }
 };
 
-/**
- * Finds View based on id. Throws 404 if DataSource with id does not exist.
- * @param { Object } req
- * @param { Object } res
- * @returns View or throws err depending on success
- */
+
 getViewById = async (req, res) => {
-	try {
-		const id = req.query.id;
+        try {
+                const id = req.query.id;
+                const userEmail = ensureUserEmail(req, res);
 
-		if (!id) {
-			return res
-				.status(400)
-				.json({ errorMessage: "Please enter all required fields." });
-		}
+                if (!id) {
+                        return res
+                                .status(400)
+                                .json({ errorMessage: "Please enter all required fields." });
+                }
 
-		console.log("getting view with id " + id);
+                if (!userEmail) {
+                        return;
+                }
 
-		const view = await View.findOne({ _id: id });
+                console.log("getting view with id " + id);
 
-		// added Error checking if no View found.
-		if (!view) {
-			return res.status(404).json({ error: "no view with this id" });
-		}
+                const view = await View.findOne({ _id: id });
 
-		return res.status(200).json({
-			success: true,
-			view: view,
-		});
-	} catch (err) {
-		console.error(err);
-		res.status(500).send();
-	}
+                if (!view) {
+                        return res.status(404).json({ error: "no view with this id" });
+                }
+
+                if (view.creator === userEmail) {
+                        return res.status(200).json({
+                                success: true,
+                                view: sanitizeView(view),
+                        });
+                }
+
+                const app = await getAppForView(view._id);
+
+                if (!app) {
+                        return res.status(403).json({
+                                success: false,
+                                error: "User is not authorized to access this view.",
+                        });
+                }
+
+                const permissions = deriveAppPermissions(app, userEmail);
+
+                if (permissions?.canManage) {
+                        return res.status(200).json({
+                                success: true,
+                                view: sanitizeView(view),
+                        });
+                }
+
+                const userRoles = getUserRoleNames(app, userEmail);
+                const hasViewRole = Array.isArray(view.roles)
+                        ? view.roles.some((roleName) => userRoles.includes(roleName))
+                        : false;
+
+                if (!permissions?.canView || !hasViewRole) {
+                        return res.status(403).json({
+                                success: false,
+                                error: "User is not authorized to access this view.",
+                        });
+                }
+
+                return res.status(200).json({
+                        success: true,
+                        view: sanitizeView(view),
+                });
+        } catch (err) {
+                console.error(err);
+                res.status(500).send();
+        }
 };
 
-/**
- * Finds View based on id and deletes it. Throws 404 if View with id does not exist.
- * @param { Object } req
- * @param { Object } res
- * @returns success or error 500 based on whether View was deleted.
- */
+
 deleteView = async (req, res) => {
-	try {
-		const id = req.query.id;
+        try {
+                const id = req.query.id;
+                const userEmail = ensureUserEmail(req, res);
 
-		if (!id) {
-			return res
-				.status(400)
-				.json({ errorMessage: "Please enter all required fields." });
-		}
+                if (!id) {
+                        return res
+                                .status(400)
+                                .json({ errorMessage: "Please enter all required fields." });
+                }
 
-		console.log("deleting view with id " + id);
+                if (!userEmail) {
+                        return;
+                }
 
-		const view = await View.findOneAndDelete({ _id: id });
+                console.log("deleting view with id " + id);
 
-		if (!view) {
-			return res.status(404).json({ error: "no view with this id" });
-		}
+                const view = await View.findOne({ _id: id });
 
-		return res.status(200).json({
-			success: true,
-		});
-	} catch (err) {
-		console.error(err);
-		res.status(500).send();
-	}
+                if (!view) {
+                        return res.status(404).json({ error: "no view with this id" });
+                }
+
+                if (view.creator !== userEmail) {
+                        const app = await getAppForView(view._id);
+
+                        if (!app) {
+                                return res.status(403).json({
+                                        success: false,
+                                        error: "User is not authorized to delete this view.",
+                                });
+                        }
+
+                        const permissions = deriveAppPermissions(app, userEmail);
+
+                        if (!permissions?.canManage) {
+                                return res.status(403).json({
+                                        success: false,
+                                        error: "User is not authorized to delete this view.",
+                                });
+                        }
+                }
+
+                await View.deleteOne({ _id: id });
+
+                return res.status(200).json({
+                        success: true,
+                });
+        } catch (err) {
+                console.error(err);
+                res.status(500).send();
+        }
 };
 
 module.exports = {
-	createView,
-	updateView,
-	getViewById,
-	deleteView,
+        createView,
+        updateView,
+        getViewById,
+        deleteView,
 };

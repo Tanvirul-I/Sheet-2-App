@@ -23,3 +23,9 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+
+
+server/.env
+server/creds.json
+server/dev_creds.json

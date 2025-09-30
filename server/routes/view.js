@@ -2,6 +2,9 @@ const express = require("express");
 const router = express.Router();
 
 const ViewController = require("../controllers/viewController");
+const requireAuth = require("../middleware/auth");
+
+router.use(requireAuth);
 
 router.post("/createView/", ViewController.createView);
 router.put("/updateView/", ViewController.updateView);

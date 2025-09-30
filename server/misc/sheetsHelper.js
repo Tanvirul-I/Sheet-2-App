@@ -78,7 +78,8 @@ editSheetByURL = async (sheetURL, row, values) => {
 };
 
 module.exports = {
-	getSheetByURL,
-	getGlobalDevList,
-	editSheetByURL,
+        getSheetByURL,
+        getGlobalDevList,
+        editSheetByURL,
+        getURLInfo,
 };

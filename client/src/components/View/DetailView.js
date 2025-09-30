@@ -1,15 +1,12 @@
 import { Button, TextField } from "@mui/material";
-import { useState, useContext } from "react";
+import { useState } from "react";
 import sheetsAPI from "../../api/sheets";
-import { AuthContext } from "../../context/auth";
 
 export default function View(props) {
 	let elements = props.elements;
 	let allowedActions = props.allowedActions;
 	let tableCols = props.tableCols;
 	let tableKey = props.tableKey;
-
-	const { user } = useContext(AuthContext);
 
 	let [inputs, setInputs] = useState({});
 	let [isEditing, setEditing] = useState(false);
@@ -75,9 +72,17 @@ export default function View(props) {
 					break;
 			}
 		}
-		await sheetsAPI.editSheet(user, props.sheetURL, valArr, props.detailEntry);
-		await props.appendCol();
-		setEditing((e) => !e);
+                try {
+                        await sheetsAPI.editSheet(props.sheetURL, valArr, props.detailEntry);
+                        await props.appendCol();
+                        setEditing((e) => !e);
+                } catch (e) {
+                        if (e.unauthorized) {
+                                console.warn("Session expired while editing entry.");
+                        } else {
+                                console.error(e);
+                        }
+                }
 	}
 
 	async function submitAdd() {
@@ -122,14 +127,17 @@ export default function View(props) {
 					break;
 			}
 		}
-		await sheetsAPI.editSheet(
-			user,
-			props.sheetURL,
-			valArr,
-			props.detailEntry + 1
-		);
-		await props.appendCol();
-		props.exit();
+                try {
+                        await sheetsAPI.editSheet(props.sheetURL, valArr, props.detailEntry + 1);
+                        await props.appendCol();
+                        props.exit();
+                } catch (e) {
+                        if (e.unauthorized) {
+                                console.warn("Session expired while adding entry.");
+                        } else {
+                                console.error(e);
+                        }
+                }
 	}
 
 	// Display a JSX table containing the first row of the table (column headers),

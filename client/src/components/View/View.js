@@ -15,8 +15,8 @@ export default function View(props) {
 	// Get the constructed view object from props.
 	let viewId = props.view;
 
-	// current user token.
-	const { user, token } = useContext(AuthContext);
+	// current user info from context.
+	const { user } = useContext(AuthContext);
 
 	// store table in state as 2D array.
 	let [table, setTable] = useState();
@@ -68,29 +68,53 @@ export default function View(props) {
 	}, [table]);
 
 	// Retrieve a view from the database by its id. Append it to the views list.
-	async function getView(id) {
-		let response = await viewAPI.getViewById(id);
-		if (response.data.success) {
-			setView(response.data.view);
-		}
-	}
+        async function getView(id) {
+                try {
+                        let response = await viewAPI.getViewById(id);
+                        if (response.data.success) {
+                                setView(response.data.view);
+                        }
+                } catch (e) {
+                        if (e.unauthorized) {
+                                console.warn("Session expired while loading view data.");
+                        } else {
+                                console.error(e);
+                        }
+                }
+        }
 
-	// get the table data from backend using the object id and user token.
-	let getTable = async (id) => {
-		let response = await dataAPI.getDataSourceById(token, id);
-		if (response.data.success) {
-			setTable([...response.data.data]);
-			setTableCols(response.data.ds.columns);
-			setSheetURL(response.data.ds.url);
-			setTableKey(response.data.ds.key);
-		}
-	};
+        // get the table data from backend using the object id.
+        let getTable = async (id) => {
+                try {
+                        let response = await dataAPI.getDataSourceById(id);
+                        if (response.data.success) {
+                                setTable([...response.data.data]);
+                                setTableCols(response.data.ds.columns);
+                                setSheetURL(response.data.ds.url);
+                                setTableKey(response.data.ds.key);
+                        }
+                } catch (e) {
+                        if (e.unauthorized) {
+                                console.warn("Session expired while loading table data.");
+                        } else {
+                                console.error(e);
+                        }
+                }
+        };
 
-	async function deleteEntry(i) {
-		let valArr = table.map((col) => "");
-		await sheetsAPI.editSheet(user, sheetURL, valArr, i + 1);
-		appendCol();
-	}
+        async function deleteEntry(i) {
+                let valArr = table.map((col) => "");
+                try {
+                        await sheetsAPI.editSheet(sheetURL, valArr, i + 1);
+                        appendCol();
+                } catch (e) {
+                        if (e.unauthorized) {
+                                console.warn("Session expired while deleting entry.");
+                        } else {
+                                console.error(e);
+                        }
+                }
+        }
 
 	// extract the columns that belong in this view.
 	// Format them as JSX table elements.

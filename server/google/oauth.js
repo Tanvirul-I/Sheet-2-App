@@ -6,7 +6,7 @@
 
 const { google } = require("googleapis");
 const dotenv = require("dotenv");
-const serviceAccountInfo = require("../creds.json");
+const serviceAccountInfo = require("../dev_creds.json");
 
 dotenv.config();
 
@@ -34,7 +34,7 @@ let createMain = async () => {
 	const oauth2Client = auth.fromJSON(serviceAccountInfo);
 	oauth2Client.scopes = [
 		"https://www.googleapis.com/auth/spreadsheets",
-		"https://www.googleapis.com/auth/drive",
+		"https://www.googleapis.com/auth/drive"
 	];
 
 	return oauth2Client;
@@ -72,7 +72,7 @@ let getUserInfo = async (oauth2Client) => {
 	return await new Promise((resolve, reject) => {
 		oauth2.userinfo.get(
 			{
-				auth: oauth2Client,
+				auth: oauth2Client
 			},
 			(err, res) => {
 				if (err) {
@@ -104,5 +104,5 @@ module.exports = {
 	createMain,
 	setToken,
 	getUserInfo,
-	decodeToken,
+	decodeToken
 };
