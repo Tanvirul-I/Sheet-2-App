@@ -14,8 +14,8 @@ export const AuthContext = createContext();
 
 // THESE ARE ALL THE TYPES OF UPDATES TO OUR AUTH STATE THAT CAN BE PROCESSED
 export const AuthActionType = {
-	LOGIN: "LOGIN",
-	LOGOUT: "LOGOUT",
+  LOGIN: "LOGIN",
+  LOGOUT: "LOGOUT",
 };
 
 /**
@@ -29,68 +29,68 @@ export const AuthActionType = {
  */
 
 export const authReducer = (state, action) => {
-	const { type, payload } = action;
+  const { type, payload } = action;
 
-	switch (type) {
-		case AuthActionType.LOGIN: {
-			localStorage.setItem("user", payload.token);
-			return {
-				user: payload.data,
-				token: payload.token,
-				globalDev: payload.globalDev,
-			};
-		}
-		case AuthActionType.LOGOUT: {
-			localStorage.removeItem("user");
-			return {
-				user: null,
-			};
-		}
-		default:
-			return state;
-	}
+  switch (type) {
+    case AuthActionType.LOGIN: {
+      localStorage.setItem("user", payload.token);
+      return {
+        user: payload.data,
+        token: payload.token,
+        globalDev: payload.globalDev,
+      };
+    }
+    case AuthActionType.LOGOUT: {
+      localStorage.removeItem("user");
+      return {
+        user: null,
+      };
+    }
+    default:
+      return state;
+  }
 };
 
 export function AuthContextProvider({ children }) {
-	const [state, dispatch] = useReducer(authReducer, { user: null });
+  const [state, dispatch] = useReducer(authReducer, { user: null });
 
-	//Checks to see if user has a valid JWT that they previously used to login
-	const checkLogin = async () => {
-		let userToken = localStorage.getItem("user");
-		if (userToken) {
-			let userInfo = await authAPI.getUserInfo(userToken);
+  //Checks to see if user has a valid JWT that they previously used to login
+  const checkLogin = async () => {
+    let userToken = localStorage.getItem("user");
+    if (userToken) {
+      let userInfo = await authAPI.getUserInfo(userToken);
 
-			if (userInfo.data.success === false) {
-				dispatch({ type: "LOGOUT", payload: {} });
-			} else {
-				let payload = userInfo.data;
-                                try {
-                                        const globalDevList = await sheetsAPI.inGlobalDevList();
-                                        payload.globalDev = globalDevList.data.success === true;
-                                } catch (err) {
-                                        if (err?.unauthorized) {
-                                                dispatch({ type: "LOGOUT", payload: {} });
-                                                return;
-                                        }
-                                        payload.globalDev = false;
-                                }
-				dispatch({ type: "LOGIN", payload: payload });
-			}
-		}
-	};
+      if (userInfo.data.success === false) {
+        dispatch({ type: "LOGOUT", payload: {} });
+      } else {
+        let payload = userInfo.data;
+        try {
+          const globalDevList = await sheetsAPI.inGlobalDevList();
+          payload.globalDev = globalDevList.data.success === true;
+        } catch (err) {
+          if (err?.unauthorized) {
+            dispatch({ type: "LOGOUT", payload: {} });
+            return;
+          }
+          payload.globalDev = false;
+        }
+        dispatch({ type: "LOGIN", payload: payload });
+      }
+    }
+  };
 
-	useEffect(() => {
-		checkLogin();
-	}, []);
+  useEffect(() => {
+    checkLogin();
+  }, []);
 
-	return (
-		<AuthContext.Provider
-			value={{
-				...state,
-				dispatch,
-			}}
-		>
-			{children}
-		</AuthContext.Provider>
-	);
+  return (
+    <AuthContext.Provider
+      value={{
+        ...state,
+        dispatch,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }

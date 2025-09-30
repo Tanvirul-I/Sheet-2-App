@@ -15,19 +15,19 @@ import MakeApp from "../App/MakeApp";
 import { AuthContext } from "../../context/auth";
 
 export default function Home() {
-	const { user } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
 
-	if (user)
-		return (
-			<div>
-				<ResponsiveAppBar />
-				<MakeApp user={user} />
-			</div>
-		);
-	else
-		return (
-			<div>
-				<GoogleAuth />
-			</div>
-		);
+  if (user)
+    return (
+      <div>
+        <ResponsiveAppBar />
+        <MakeApp user={user} />
+      </div>
+    );
+  else
+    return (
+      <div>
+        <GoogleAuth />
+      </div>
+    );
 }

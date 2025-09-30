@@ -7,13 +7,13 @@ import { AuthContextProvider } from "./context/auth";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
-	<React.StrictMode>
-		<AuthContextProvider>
-			<GoogleOAuthProvider clientId="79643311935-q6nhuqkvod9r7l2sgflmrp5uuf3582sa.apps.googleusercontent.com">
-				<App />
-			</GoogleOAuthProvider>
-		</AuthContextProvider>
-	</React.StrictMode>
+  <React.StrictMode>
+    <AuthContextProvider>
+      <GoogleOAuthProvider clientId="801683129519-a505g570j77t10u4rdv7k5igfevbet2g.apps.googleusercontent.com">
+        <App />
+      </GoogleOAuthProvider>
+    </AuthContextProvider>
+  </React.StrictMode>,
 );
 
 // If you want to start measuring performance in your app, pass a function
