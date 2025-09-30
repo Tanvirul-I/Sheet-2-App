@@ -1,145 +1,139 @@
 const toPlainObject = (doc) =>
-  doc && typeof doc.toObject === "function"
-    ? doc.toObject({ getters: true, virtuals: false })
-    : doc;
+	doc && typeof doc.toObject === 'function'
+		? doc.toObject({ getters: true, virtuals: false })
+		: doc;
 
 const normalizeRoles = (roles) => (Array.isArray(roles) ? roles : []);
 
 const deriveAppPermissions = (appDoc, userEmail) => {
-  const app = toPlainObject(appDoc);
-  const roles = normalizeRoles(app?.roles);
-  const isCreator = app?.creator === userEmail;
-  const isDeveloper = roles.some(
-    (role) =>
-      typeof role?.name === "string" &&
-      role.name.toLowerCase() === "developer" &&
-      Array.isArray(role.members) &&
-      role.members.includes(userEmail),
-  );
-  const isMember = roles.some(
-    (role) => Array.isArray(role?.members) && role.members.includes(userEmail),
-  );
-  const canManage = isCreator || isDeveloper;
-  const canView = canManage || (app?.published === true && isMember);
+	const app = toPlainObject(appDoc);
+	const roles = normalizeRoles(app?.roles);
+	const isCreator = app?.creator === userEmail;
+	const isDeveloper = roles.some(
+		(role) =>
+			typeof role?.name === 'string' &&
+			role.name.toLowerCase() === 'developer' &&
+			Array.isArray(role.members) &&
+			role.members.includes(userEmail)
+	);
+	const isMember = roles.some(
+		(role) => Array.isArray(role?.members) && role.members.includes(userEmail)
+	);
+	const canManage = isCreator || isDeveloper;
+	const canView = canManage || (app?.published === true && isMember);
 
-  return {
-    isCreator,
-    isDeveloper,
-    isMember,
-    canManage,
-    canView,
-  };
+	return {
+		isCreator,
+		isDeveloper,
+		isMember,
+		canManage,
+		canView
+	};
 };
 
 const filterRolesForUser = (roles, userEmail, canManage) => {
-  const normalized = normalizeRoles(roles);
+	const normalized = normalizeRoles(roles);
 
-  if (canManage) {
-    return normalized;
-  }
+	if (canManage) {
+		return normalized;
+	}
 
-  return normalized.map((role) => ({
-    name: role?.name,
-    members:
-      Array.isArray(role?.members) && role.members.includes(userEmail)
-        ? [userEmail]
-        : [],
-  }));
+	return normalized.map((role) => ({
+		name: role?.name,
+		members: Array.isArray(role?.members) && role.members.includes(userEmail) ? [userEmail] : []
+	}));
 };
 
 const sanitizeApp = (appDoc, userEmail) => {
-  const app = toPlainObject(appDoc);
+	const app = toPlainObject(appDoc);
 
-  if (!app) {
-    return null;
-  }
+	if (!app) {
+		return null;
+	}
 
-  const permissions = deriveAppPermissions(app, userEmail);
+	const permissions = deriveAppPermissions(app, userEmail);
 
-  if (!permissions.canView) {
-    return null;
-  }
+	if (!permissions.canView) {
+		return null;
+	}
 
-  const sanitized = {
-    _id: app._id,
-    name: app.name,
-    dataSources: app.dataSources,
-    view: app.view,
-    roles: filterRolesForUser(app.roles, userEmail, permissions.canManage),
-    published: app.published,
-    permissions,
-  };
+	const sanitized = {
+		_id: app._id,
+		name: app.name,
+		dataSources: app.dataSources,
+		view: app.view,
+		roles: filterRolesForUser(app.roles, userEmail, permissions.canManage),
+		published: app.published,
+		permissions
+	};
 
-  if (permissions.canManage) {
-    sanitized.roleSheet = app.roleSheet;
-  }
+	if (permissions.canManage) {
+		sanitized.roleSheet = app.roleSheet;
+	}
 
-  return sanitized;
+	return sanitized;
 };
 
 const sanitizeDataSource = (dataSourceDoc, { includeSpreadsheetId } = {}) => {
-  const dataSource = toPlainObject(dataSourceDoc);
+	const dataSource = toPlainObject(dataSourceDoc);
 
-  if (!dataSource) {
-    return null;
-  }
+	if (!dataSource) {
+		return null;
+	}
 
-  const sanitized = {
-    _id: dataSource._id,
-    name: dataSource.name,
-    url: dataSource.url,
-    gid: dataSource.gid,
-    key: dataSource.key,
-    columns: dataSource.columns,
-    published: dataSource.published,
-  };
+	const sanitized = {
+		_id: dataSource._id,
+		name: dataSource.name,
+		url: dataSource.url,
+		gid: dataSource.gid,
+		key: dataSource.key,
+		columns: dataSource.columns,
+		published: dataSource.published
+	};
 
-  if (includeSpreadsheetId) {
-    sanitized.spreadsheetId = dataSource.spreadsheetId;
-  }
+	if (includeSpreadsheetId) {
+		sanitized.spreadsheetId = dataSource.spreadsheetId;
+	}
 
-  return sanitized;
+	return sanitized;
 };
 
 const sanitizeView = (viewDoc) => {
-  const view = toPlainObject(viewDoc);
+	const view = toPlainObject(viewDoc);
 
-  if (!view) {
-    return null;
-  }
+	if (!view) {
+		return null;
+	}
 
-  return {
-    _id: view._id,
-    name: view.name,
-    table: view.table,
-    columns: view.columns,
-    type: view.type,
-    allowedActions: view.allowedActions,
-    roles: view.roles,
-    filter: view.filter,
-    userFilter: view.userFilter,
-    editFilter: view.editFilter,
-    editableCols: view.editableCols,
-  };
+	return {
+		_id: view._id,
+		name: view.name,
+		table: view.table,
+		columns: view.columns,
+		type: view.type,
+		allowedActions: view.allowedActions,
+		roles: view.roles,
+		filter: view.filter,
+		userFilter: view.userFilter,
+		editFilter: view.editFilter,
+		editableCols: view.editableCols
+	};
 };
 
 const getUserRoleNames = (appDoc, userEmail) => {
-  const app = toPlainObject(appDoc);
-  const roles = normalizeRoles(app?.roles);
+	const app = toPlainObject(appDoc);
+	const roles = normalizeRoles(app?.roles);
 
-  return roles
-    .filter(
-      (role) =>
-        Array.isArray(role?.members) && role.members.includes(userEmail),
-    )
-    .map((role) => role.name);
+	return roles
+		.filter((role) => Array.isArray(role?.members) && role.members.includes(userEmail))
+		.map((role) => role.name);
 };
 
 module.exports = {
-  deriveAppPermissions,
-  filterRolesForUser,
-  sanitizeApp,
-  sanitizeDataSource,
-  sanitizeView,
-  getUserRoleNames,
+	deriveAppPermissions,
+	filterRolesForUser,
+	sanitizeApp,
+	sanitizeDataSource,
+	sanitizeView,
+	getUserRoleNames
 };

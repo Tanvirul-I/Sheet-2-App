@@ -1,5 +1,5 @@
 const cache = {
-  sheets: {},
+	sheets: {}
 };
 
 /**
@@ -9,8 +9,8 @@ const cache = {
  */
 
 cache.getSpreadSheet = (spreadsheetId) => {
-  if (spreadsheetId in cache.sheets) return cache.sheets[spreadsheetId];
-  else return undefined;
+	if (spreadsheetId in cache.sheets) return cache.sheets[spreadsheetId];
+	else return undefined;
 };
 
 /**
@@ -23,10 +23,10 @@ cache.getSpreadSheet = (spreadsheetId) => {
  */
 
 cache.addSpreadSheet = (spreadsheetId, modifiedData) => {
-  modifiedData.modifiedTime = Date.parse(modifiedData.modifiedTime);
-  cache.sheets[spreadsheetId] = {
-    modifiedData: modifiedData,
-  };
+	modifiedData.modifiedTime = Date.parse(modifiedData.modifiedTime);
+	cache.sheets[spreadsheetId] = {
+		modifiedData: modifiedData
+	};
 };
 
 /**
@@ -39,11 +39,11 @@ cache.addSpreadSheet = (spreadsheetId, modifiedData) => {
  */
 
 cache.addSheet = (spreadsheetId, GID, data, modifiedData, range) => {
-  cache.sheets[spreadsheetId] = {
-    modifiedData: modifiedData,
-  };
-  cache.sheets[spreadsheetId][GID] = data;
-  cache.sheets[spreadsheetId][GID]["range"] = range;
+	cache.sheets[spreadsheetId] = {
+		modifiedData: modifiedData
+	};
+	cache.sheets[spreadsheetId][GID] = data;
+	cache.sheets[spreadsheetId][GID]['range'] = range;
 };
 
 /**
@@ -56,14 +56,12 @@ cache.addSheet = (spreadsheetId, GID, data, modifiedData, range) => {
  */
 
 cache.updateSheet = (spreadsheetId, GID, row, values) => {
-  values = values[0];
-  cache.sheets[spreadsheetId]["modifiedData"].modifiedTime = Date.parse(
-    new Date(),
-  );
-  for (let idx in cache.sheets[spreadsheetId][GID]["values"]) {
-    let column = cache.sheets[spreadsheetId][GID]["values"][idx];
-    column.splice(row - 1, 1, values[idx]);
-  }
+	values = values[0];
+	cache.sheets[spreadsheetId]['modifiedData'].modifiedTime = Date.parse(new Date());
+	for (let idx in cache.sheets[spreadsheetId][GID]['values']) {
+		let column = cache.sheets[spreadsheetId][GID]['values'][idx];
+		column.splice(row - 1, 1, values[idx]);
+	}
 };
 
 /**
@@ -74,9 +72,9 @@ cache.updateSheet = (spreadsheetId, GID, row, values) => {
  */
 
 cache.getSheet = (spreadsheetId, GID) => {
-  if (spreadsheetId in cache.sheets && GID in cache.sheets[spreadsheetId] > -1)
-    return cache.sheets[spreadsheetId][GID];
-  else return undefined;
+	if (spreadsheetId in cache.sheets && GID in cache.sheets[spreadsheetId] > -1)
+		return cache.sheets[spreadsheetId][GID];
+	else return undefined;
 };
 
 /**
@@ -87,10 +85,7 @@ cache.getSheet = (spreadsheetId, GID) => {
  */
 
 cache.compare = (spreadsheetId, modifiedData) => {
-  return (
-    cache.sheets[spreadsheetId]["modifiedData"].modifiedTime ==
-    modifiedData.modifiedTime
-  );
+	return cache.sheets[spreadsheetId]['modifiedData'].modifiedTime == modifiedData.modifiedTime;
 };
 
 /**
@@ -100,7 +95,7 @@ cache.compare = (spreadsheetId, modifiedData) => {
  */
 
 cache.delete = (spreadsheetId) => {
-  delete cache.sheets[spreadsheetId];
+	delete cache.sheets[spreadsheetId];
 };
 
 module.exports = { cache };

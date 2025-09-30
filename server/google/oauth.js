@@ -4,9 +4,9 @@
  *
  */
 
-const { google } = require("googleapis");
-const dotenv = require("dotenv");
-const serviceAccountInfo = require("../dev_creds.json");
+const { google } = require('googleapis');
+const dotenv = require('dotenv');
+const serviceAccountInfo = require('../dev_creds.json');
 
 dotenv.config();
 
@@ -20,24 +20,24 @@ dotenv.config();
  */
 
 let createClient = async () => {
-  const oauth2Client = new google.auth.OAuth2(
-    process.env.GOOGLEID,
-    process.env.GOOGLESECRET,
-    "postmessage",
-  );
+	const oauth2Client = new google.auth.OAuth2(
+		process.env.GOOGLEID,
+		process.env.GOOGLESECRET,
+		'postmessage'
+	);
 
-  return oauth2Client;
+	return oauth2Client;
 };
 
 let createMain = async () => {
-  const auth = google.auth;
-  const oauth2Client = auth.fromJSON(serviceAccountInfo);
-  oauth2Client.scopes = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive",
-  ];
+	const auth = google.auth;
+	const oauth2Client = auth.fromJSON(serviceAccountInfo);
+	oauth2Client.scopes = [
+		'https://www.googleapis.com/auth/spreadsheets',
+		'https://www.googleapis.com/auth/drive'
+	];
 
-  return oauth2Client;
+	return oauth2Client;
 };
 
 /**
@@ -50,11 +50,11 @@ let createMain = async () => {
  */
 
 let setToken = async (oauth2Client, code) => {
-  let { tokens } = await oauth2Client.getToken(code);
-  await oauth2Client.setCredentials(tokens);
+	let { tokens } = await oauth2Client.getToken(code);
+	await oauth2Client.setCredentials(tokens);
 
-  //const apis = google.getSupportedAPIs();
-  return;
+	//const apis = google.getSupportedAPIs();
+	return;
 };
 
 /**
@@ -66,23 +66,23 @@ let setToken = async (oauth2Client, code) => {
  *
  */
 let getUserInfo = async (oauth2Client) => {
-  const oauth2 = google.oauth2("v2");
-  // A promise is necessary here to wait for the request to be
-  // returned by Google.
-  return await new Promise((resolve, reject) => {
-    oauth2.userinfo.get(
-      {
-        auth: oauth2Client,
-      },
-      (err, res) => {
-        if (err) {
-          reject({ success: false, data: err });
-        } else {
-          resolve({ success: true, data: res.data });
-        }
-      },
-    );
-  });
+	const oauth2 = google.oauth2('v2');
+	// A promise is necessary here to wait for the request to be
+	// returned by Google.
+	return await new Promise((resolve, reject) => {
+		oauth2.userinfo.get(
+			{
+				auth: oauth2Client
+			},
+			(err, res) => {
+				if (err) {
+					reject({ success: false, data: err });
+				} else {
+					resolve({ success: true, data: res.data });
+				}
+			}
+		);
+	});
 };
 
 /**
@@ -95,14 +95,14 @@ let getUserInfo = async (oauth2Client) => {
  */
 
 let decodeToken = async (token) => {
-  const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
-  return decodedToken;
+	const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+	return decodedToken;
 };
 
 module.exports = {
-  createClient,
-  createMain,
-  setToken,
-  getUserInfo,
-  decodeToken,
+	createClient,
+	createMain,
+	setToken,
+	getUserInfo,
+	decodeToken
 };
