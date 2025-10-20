@@ -6,11 +6,11 @@
 		"pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json}\""
 	},
 	"prettier": {
-		"trailingComma": "none",
-		"singleQuote": true,
+		"trailingComma": "es5",
+		"singleQuote": false,
 		"printWidth": 100,
-		"tabWidth": 4,
-		"useTabs": true
+		"tabWidth": 2,
+		"useTabs": false
 	},
 	"repository": {
 		"type": "git",
