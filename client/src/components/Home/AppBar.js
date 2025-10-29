@@ -40,19 +40,30 @@ function ResponsiveAppBar() {
 
     return (
         <AppBar position="static">
-            <Toolbar id="toolbar" disableGutters sx={{ px: 2, direction: 'ltr' }}>
+            <Toolbar
+                id="toolbar"
+                disableGutters
+                sx={{
+                    px: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                }}
+            >
                 <Button
                     component={RouterLink}
                     to="/"
                     color="inherit"
                     sx={{
-                        fontWeight: 700,
-                        textTransform: "none",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "flex-start",
+                        flexGrow: 1,
                     }}
                 >
                     Sheet 2 App
                 </Button>
-                <Box sx={{ ml: "auto", display: "flex", alignItems: "center" }}>
+                <Box sx={{ display: "flex", alignItems: "center" }}>
                     <Button component={RouterLink} to="/help" color="inherit" sx={{ mr: 2 }}>
                         Help
                     </Button>
