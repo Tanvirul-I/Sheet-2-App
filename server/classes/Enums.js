@@ -1,18 +1,18 @@
 export const TYPES = {
-	Boolean,
-	Number,
-	Text,
-	URL
+    Boolean,
+    Number,
+    Text,
+    URL,
 };
 
 export const ALLOWED_ACTIONS = {
-	Add,
-	Edit,
-	Delete
+    Add,
+    Edit,
+    Delete,
 };
 
 export const PERMISSIONS = {
-	View,
-	Add,
-	Delete
+    View,
+    Add,
+    Delete,
 };

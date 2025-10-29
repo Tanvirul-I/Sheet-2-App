@@ -1,5 +1,5 @@
 const main = async () => {};
 
 module.exports = {
-	main
+    main,
 };

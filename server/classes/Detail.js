@@ -1,11 +1,11 @@
 class Detail {
-	constructor() {
-		super();
-	}
+    constructor() {
+        super();
+    }
 
-	editFilter = (columns) => {};
+    editFilter = (columns) => {};
 
-	editableColumns = (columns) => {};
+    editableColumns = (columns) => {};
 }
 
 export default Detail;

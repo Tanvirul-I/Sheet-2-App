@@ -1,29 +1,29 @@
 {
-	"name": "sheet-2-app",
-	"version": "1.0.0",
-	"main": "index.js",
-	"scripts": {
-		"pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json}\""
-	},
-	"prettier": {
-		"trailingComma": "es5",
-		"singleQuote": false,
-		"printWidth": 100,
-		"tabWidth": 2,
-		"useTabs": false
-	},
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/Tanvirul-I/Sheet-2-App.git"
-	},
-	"author": "",
-	"license": "ISC",
-	"bugs": {
-		"url": "https://github.com/Tanvirul-I/Sheet-2-App/issues"
-	},
-	"homepage": "https://github.com/Tanvirul-I/Sheet-2-App#readme",
-	"description": "",
-	"devDependencies": {
-		"prettier": "^3.6.2"
-	}
+    "name": "sheet-2-app",
+    "version": "1.0.0",
+    "main": "index.js",
+    "scripts": {
+        "pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json}\""
+    },
+    "prettier": {
+        "trailingComma": "es5",
+        "singleQuote": false,
+        "printWidth": 100,
+        "tabWidth": 4,
+        "useTabs": false
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/Tanvirul-I/Sheet-2-App.git"
+    },
+    "author": "",
+    "license": "ISC",
+    "bugs": {
+        "url": "https://github.com/Tanvirul-I/Sheet-2-App/issues"
+    },
+    "homepage": "https://github.com/Tanvirul-I/Sheet-2-App#readme",
+    "description": "",
+    "devDependencies": {
+        "prettier": "^3.6.2"
+    }
 }

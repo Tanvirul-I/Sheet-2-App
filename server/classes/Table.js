@@ -1,9 +1,9 @@
 class Table {
-	constructor() {}
+    constructor() {}
 
-	filter = (columns) => {};
+    filter = (columns) => {};
 
-	userFilter = (columns) => {};
+    userFilter = (columns) => {};
 }
 
 export default Table;

@@ -1,6 +1,6 @@
-const DataSource = require('../schemas/dataSource-schema');
-const App = require('../schemas/app-schema');
-const { deriveAppPermissions } = require('../utils/accessControl');
+const DataSource = require("../schemas/dataSource-schema");
+const App = require("../schemas/app-schema");
+const { deriveAppPermissions } = require("../utils/accessControl");
 
 /**
  * Resolves data source access for a user given a spreadsheet id.
@@ -9,61 +9,61 @@ const { deriveAppPermissions } = require('../utils/accessControl');
  * @returns {Promise<{dataSource: *, app: *, permissions: *, canView: boolean, canManage: boolean}>}
  */
 getDataSourceAccess = async (spreadsheetId, userEmail) => {
-	if (!spreadsheetId) {
-		return {
-			dataSource: null,
-			app: null,
-			permissions: null,
-			canView: false,
-			canManage: false
-		};
-	}
+    if (!spreadsheetId) {
+        return {
+            dataSource: null,
+            app: null,
+            permissions: null,
+            canView: false,
+            canManage: false,
+        };
+    }
 
-	const dataSource = await DataSource.findOne({ spreadsheetId });
+    const dataSource = await DataSource.findOne({ spreadsheetId });
 
-	if (!dataSource) {
-		return {
-			dataSource: null,
-			app: null,
-			permissions: null,
-			canView: false,
-			canManage: false
-		};
-	}
+    if (!dataSource) {
+        return {
+            dataSource: null,
+            app: null,
+            permissions: null,
+            canView: false,
+            canManage: false,
+        };
+    }
 
-	if (dataSource.creator === userEmail) {
-		return {
-			dataSource,
-			app: null,
-			permissions: null,
-			canView: true,
-			canManage: true
-		};
-	}
+    if (dataSource.creator === userEmail) {
+        return {
+            dataSource,
+            app: null,
+            permissions: null,
+            canView: true,
+            canManage: true,
+        };
+    }
 
-	const app = await App.findOne({ dataSources: dataSource._id });
+    const app = await App.findOne({ dataSources: dataSource._id });
 
-	if (!app) {
-		return {
-			dataSource,
-			app: null,
-			permissions: null,
-			canView: false,
-			canManage: false
-		};
-	}
+    if (!app) {
+        return {
+            dataSource,
+            app: null,
+            permissions: null,
+            canView: false,
+            canManage: false,
+        };
+    }
 
-	const permissions = deriveAppPermissions(app, userEmail);
-	const canView = permissions?.canView === true;
-	const canManage = permissions?.canManage === true;
+    const permissions = deriveAppPermissions(app, userEmail);
+    const canView = permissions?.canView === true;
+    const canManage = permissions?.canManage === true;
 
-	return {
-		dataSource,
-		app,
-		permissions,
-		canView,
-		canManage
-	};
+    return {
+        dataSource,
+        app,
+        permissions,
+        canView,
+        canManage,
+    };
 };
 
 /**
@@ -73,22 +73,22 @@ getDataSourceAccess = async (spreadsheetId, userEmail) => {
  * @returns
  */
 checkSchemaConsistency = async (datasource, sheetInfo) => {
-	let found = false;
+    let found = false;
 
-	for (let columnSheet of sheetInfo) {
-		for (let columnDS of datasource.columns) {
-			if (columnSheet[0] == columnDS['name']) {
-				found = true;
-			}
-		}
-		if (!found) return false;
-		found = false;
-	}
+    for (let columnSheet of sheetInfo) {
+        for (let columnDS of datasource.columns) {
+            if (columnSheet[0] == columnDS["name"]) {
+                found = true;
+            }
+        }
+        if (!found) return false;
+        found = false;
+    }
 
-	return true;
+    return true;
 };
 
 module.exports = {
-	getDataSourceAccess,
-	checkSchemaConsistency
+    getDataSourceAccess,
+    checkSchemaConsistency,
 };
