@@ -47,23 +47,15 @@ function ResponsiveAppBar() {
                     px: 2,
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "space-between",
                 }}
             >
-                <Button
-                    component={RouterLink}
-                    to="/"
-                    color="inherit"
+                <Box
                     sx={{
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "flex-start",
-                        flexGrow: 1,
+                        ml: "auto",
                     }}
                 >
-                    Sheet 2 App
-                </Button>
-                <Box sx={{ display: "flex", alignItems: "center" }}>
                     <Button component={RouterLink} to="/help" color="inherit" sx={{ mr: 2 }}>
                         Help
                     </Button>
