@@ -163,7 +163,7 @@ export default function MakeApp(props) {
             }
             asyncCreateApp();
         }
-    }, [sheetInfo]);
+    }, [name, roleSheet, sheetInfo]);
 
     // Create an app with the specified information from the input fields.
     // Creator is automatically set to the user's email.

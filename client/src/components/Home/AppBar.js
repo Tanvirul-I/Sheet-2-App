@@ -12,7 +12,6 @@ import {
     IconButton,
     Typography,
     Menu,
-    Container,
     Avatar,
     Tooltip,
     MenuItem,
@@ -41,57 +40,51 @@ function ResponsiveAppBar() {
 
     return (
         <AppBar position="static">
-            <Container maxWidth="xl">
-                <Toolbar id="toolbar" disableGutters>
-                    <Typography
-                        variant="h6"
-                        noWrap
-                        component={RouterLink}
-                        to="/"
-                        sx={{
-                            mr: 2,
-                            fontWeight: 700,
-                            color: "inherit",
-                            textDecoration: "none",
-                            flexGrow: 1,
-                        }}
-                    >
-                        Sheet 2 App
-                    </Typography>
+            <Toolbar id="toolbar" disableGutters sx={{ px: 2, direction: 'ltr' }}>
+                <Button
+                    component={RouterLink}
+                    to="/"
+                    color="inherit"
+                    sx={{
+                        fontWeight: 700,
+                        textTransform: "none",
+                    }}
+                >
+                    Sheet 2 App
+                </Button>
+                <Box sx={{ ml: "auto", display: "flex", alignItems: "center" }}>
                     <Button component={RouterLink} to="/help" color="inherit" sx={{ mr: 2 }}>
                         Help
                     </Button>
-                    <Box sx={{ flexGrow: 0 }}>
-                        <Tooltip title="Open settings">
-                            <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                                <Avatar alt="Test" />
-                            </IconButton>
-                        </Tooltip>
-                        <Menu
-                            sx={{ mt: "45px" }}
-                            id="menu-appbar"
-                            anchorEl={anchorElUser}
-                            anchorOrigin={{
-                                vertical: "top",
-                                horizontal: "right",
-                            }}
-                            keepMounted
-                            transformOrigin={{
-                                vertical: "top",
-                                horizontal: "right",
-                            }}
-                            open={Boolean(anchorElUser)}
-                            onClose={handleCloseUserMenu}
-                        >
-                            {settings.map((setting) => (
-                                <MenuItem key={setting} onClick={handleCloseUserMenu}>
-                                    <Typography textAlign="center">{setting}</Typography>
-                                </MenuItem>
-                            ))}
-                        </Menu>
-                    </Box>
-                </Toolbar>
-            </Container>
+                    <Tooltip title="Open settings">
+                        <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
+                            <Avatar alt="Test" />
+                        </IconButton>
+                    </Tooltip>
+                    <Menu
+                        sx={{ mt: "45px" }}
+                        id="menu-appbar"
+                        anchorEl={anchorElUser}
+                        anchorOrigin={{
+                            vertical: "top",
+                            horizontal: "right",
+                        }}
+                        keepMounted
+                        transformOrigin={{
+                            vertical: "top",
+                            horizontal: "right",
+                        }}
+                        open={Boolean(anchorElUser)}
+                        onClose={handleCloseUserMenu}
+                    >
+                        {settings.map((setting) => (
+                            <MenuItem key={setting} onClick={handleCloseUserMenu}>
+                                <Typography textAlign="center">{setting}</Typography>
+                            </MenuItem>
+                        ))}
+                    </Menu>
+                </Box>
+            </Toolbar>
         </AppBar>
     );
 }
